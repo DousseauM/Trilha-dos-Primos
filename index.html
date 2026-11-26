@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Jogo de Tabuleiro da Matemática</title>
+<style>
+:root{--bg:#f6f4ef;--card:#fff;--ink:#1d1d1f;--mute:#6b6b70;--line:#d9d6cc;--acc:#2f6fd0;--good:#1e8e3e;--bad:#c5372c;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#17171a;--card:#212125;--ink:#f1f0ec;--mute:#9a9aa2;--line:#3a3a40;--acc:#6aa3ff;--good:#4cc16f;--bad:#ff7a6e;color-scheme:dark}}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;line-height:1.45}
+main{max-width:980px;margin:0 auto;padding:16px 14px 40px}
+h1{font-size:1.4rem;margin:0 0 12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:14px}
+button{font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:10px;padding:9px 16px;cursor:pointer}
+button:hover:not(:disabled){border-color:var(--acc)}
+button:disabled{opacity:.5;cursor:default}
+button.pri{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:700}
+.counts{display:flex;gap:8px;margin:10px 0 14px}
+.counts button{flex:1;font-size:1.2rem;font-weight:700}
+.counts button.sel{background:var(--acc);border-color:var(--acc);color:#fff}
+#game{display:none}
+#board{position:relative;width:100%;aspect-ratio:1024/608;border-radius:14px;overflow:hidden;border:1px solid var(--line);background:#fff}
+#board img{width:100%;height:100%;display:block;user-select:none;-webkit-user-drag:none}
+.pin{position:absolute;width:max(3.6%,14px);aspect-ratio:1;border-radius:50%;border:2.5px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.55);transform:translate(-50%,-50%) translate(calc(var(--dx)*100%),calc(var(--dy)*100%));transition:left .22s ease,top .22s ease}
+.pin.cur{animation:pulse 1s infinite;z-index:5}
+@keyframes pulse{50%{box-shadow:0 0 0 6px rgba(255,255,255,.55),0 1px 4px rgba(0,0,0,.55)}}
+.panel{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-top:14px}
+.turn{flex:1;min-width:200px;font-size:1.1rem;font-weight:700;display:flex;align-items:center;gap:8px}
+.dot{display:inline-block;width:16px;height:16px;border-radius:50%;border:2px solid var(--line)}
+#die{width:64px;height:64px;border-radius:14px;border:2px solid var(--line);background:var(--card);display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:800}
+#die.roll{animation:shake .14s infinite}
+@keyframes shake{50%{transform:rotate(12deg) scale(1.06)}}
+#list{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;margin-top:14px}
+#list div{display:flex;align-items:center;gap:8px;font-size:.95rem;padding:8px 10px;border:1px solid var(--line);border-radius:10px}
+#list div.me{border-color:var(--acc);box-shadow:0 0 0 1px var(--acc)}
+#list small{color:var(--mute);margin-left:auto}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px;z-index:50}
+.modal[hidden]{display:none}
+.box{background:var(--card);border-radius:18px;padding:22px;max-width:380px;width:100%;text-align:center}
+.badge{display:inline-block;padding:4px 12px;border-radius:99px;font-size:.85rem;font-weight:700;color:#fff}
+.badge.easy{background:#1e8e3e}.badge.hard{background:#c5372c}.badge.info{background:var(--acc)}
+#eq{font-size:2.2rem;font-weight:800;margin:16px 0}
+#ans{width:100%;font:inherit;font-size:1.4rem;text-align:center;padding:10px;border:2px solid var(--line);border-radius:12px;background:var(--bg);color:var(--ink)}
+#fb{min-height:1.6em;margin:12px 0;font-weight:700}
+#fb.good{color:var(--good)}#fb.bad{color:var(--bad)}
+.box button{width:100%;margin-top:6px}
+.chk{display:flex;gap:12px;align-items:center;text-align:left;padding:12px;border:1px solid var(--line);border-radius:12px;margin-top:10px;cursor:pointer;font-weight:600}
+.chk input{width:22px;height:22px;flex:none;accent-color:var(--acc)}
+</style>
+</head>
+<body>
+<main>
+<h1>🎲 Jogo de Tabuleiro da Matemática</h1>
+
+<div class="card" id="setup">
+<strong>Quantos jogadores?</strong>
+<div class="counts" id="counts"><button data-n="1">1</button><button data-n="2" class="sel">2</button><button data-n="3">3</button><button data-n="4">4</button><button data-n="5">5</button><button data-n="6">6</button><button data-n="7">7</button></div>
+<button class="pri" id="start">Começar</button>
+</div>
+
+<div id="game">
+<div id="board"><img alt="Tabuleiro do jogo" src="tabuleiro.jpg"></div>
+<div class="panel">
+<div class="turn"><span class="dot" id="tdot"></span><span id="tname"></span></div>
+<div id="die">🎲</div>
+<button class="pri" id="roll">Rolar dado</button>
+<button id="reset">Reiniciar</button>
+</div>
+<div id="list"></div>
+</div>
+</main>
+
+<div class="modal" id="modal" hidden><div class="box">
+<span class="badge" id="badge"></span>
+<div id="eq"></div>
+<input id="ans" type="text" inputmode="numeric" autocomplete="off" placeholder="x = ?" aria-label="Resposta">
+<div id="fb"></div>
+<button class="pri" id="ok">Responder</button>
+<button class="pri" id="nx" style="display:none">Continuar</button>
+</div></div>
+
+<div class="modal" id="win" hidden><div class="box">
+<div style="font-size:3rem">🏆</div>
+<h2 id="wtxt" style="margin:6px 0 14px"></h2>
+<button class="pri" id="again">Jogar de novo</button>
+</div></div>
+
+<div class="modal" id="endm" hidden><div class="box">
+<span class="badge info">Fim da jogada</span>
+<h2 id="endt" style="margin:12px 0 4px"></h2>
+<label class="chk"><input type="checkbox" id="c1"> Respondeu corretamente</label>
+<button class="pri" id="endok" style="margin-top:14px">Concluir jogada</button>
+</div></div>
+
+<div class="modal" id="pendm" hidden><div class="box">
+<span class="badge hard">Pergunta pendente</span>
+<h2 id="pendt" style="margin:12px 0 4px"></h2>
+<p style="margin:0 0 10px">Respondeu corretamente agora?</p>
+<button class="pri" id="pendyes">Sim, pode jogar</button>
+<button id="pendno">Não, perde a vez</button>
+</div></div>
+
+<script>
+(function(){
+var SEQ="S,1,2,3,4,5,D,6,7,8,9,10,D,11,12,13,14,15,D,16,17,18,19,20,DD,21,22,23,24,25,D,26,27,28,29,30,F".split(",");
+var XY=[[300,522],[423,512],[497,487],[573,485],[650,502],[733,517],[808,520],[884,500],[948,440],[925,376],[858,375],[775,385],[707,360],[631,332],[553,328],[487,365],[421,405],[326,418],[278,370],[345,312],[425,290],[483,238],[443,182],[366,187],[250,245],[133,272],[70,222],[95,152],[172,122],[245,132],[315,95],[381,57],[459,45],[532,75],[577,135],[600,200],[715,205]];
+var IW=1024,IH=608,LAST=SEQ.length-1;
+var COLORS=[["Vermelho","#e63946"],["Verde","#2a9d4a"],["Roxo","#7b2cbf"],["Preto","#222222"],["Rosa","#ff4fa3"],["Marrom","#8b4513"],["Cinza","#7f8c8d"]];
+var OFF=[[-.55,-.55],[.55,-.55],[-.55,.55],[.55,.55]];
+var OFF7=[[-.85,-.85],[0,-.85],[.85,-.85],[-.85,0],[0,0],[.85,0],[0,.85]]; // grade 3x3, usada com mais de 4 jogadores
+var BONUS={easy:[1,-1],hard:[3,-2]}; // [casas ao acertar, casas ao errar]
+function cs(n){n=Math.abs(n);return n+(n===1?" casa":" casas")}
+var $=function(i){return document.getElementById(i)};
+var players=[],cur=0,busy=false,n=2;
+function ri(a,b){return a+Math.floor(Math.random()*(b-a+1))}
+function sleep(ms){return new Promise(function(r){setTimeout(r,ms)})}
+
+function easy(){
+  var t=ri(0,4),a,x,c;
+  if(t===0){a=ri(1,20);x=ri(1,20);return{q:a+" + x = "+(a+x),ans:x}}
+  if(t===1){a=ri(1,20);x=ri(1,20);return{q:"x + "+a+" = "+(a+x),ans:x}}
+  if(t===2){a=ri(1,15);x=ri(a+1,a+20);return{q:"x − "+a+" = "+(x-a),ans:x}}
+  if(t===3){a=ri(2,9);x=ri(2,12);return{q:a+"x = "+(a*x),ans:x}}
+  a=ri(2,6);x=ri(1,10);c=ri(1,15);return{q:a+"x + "+c+" = "+(a*x+c),ans:x};
+}
+function hard(){
+  var t=ri(0,3),k,a;
+  if(t===0){k=ri(2,12);return{q:"√x = "+k,ans:k*k}}
+  if(t===1){k=ri(2,10);a=ri(1,9);return{q:"√x + "+a+" = "+(k+a),ans:k*k}}
+  if(t===2){k=ri(3,9);a=ri(1,Math.min(15,k*k-1));return{q:"√(x + "+a+") = "+k,ans:k*k-a}}
+  a=ri(2,4);k=ri(2,9);return{q:a+"√x = "+(a*k),ans:k*k};
+}
+function ask(kind,tag){
+  return new Promise(function(res){
+    var c=kind==="easy"?easy():hard(),ans=$("ans"),ok=$("ok"),nx=$("nx"),fb=$("fb");
+    $("badge").textContent=(tag?tag+" · ":"")+(kind==="easy"?"Carta fácil":"Carta difícil");
+    $("badge").className="badge "+kind;
+    $("eq").textContent=c.q;ans.value="";ans.disabled=false;fb.textContent="";fb.className="";
+    ok.style.display="";nx.style.display="none";$("modal").hidden=false;ans.focus();
+    function check(){
+      var raw=String(ans.value).trim(),v=Number(raw.replace(",",".").replace("−","-"));
+      if(raw===""||isNaN(v))return;
+      var good=Math.abs(v-c.ans)<1e-9;
+      ans.disabled=true;ok.style.display="none";nx.style.display="";
+      fb.className=good?"good":"bad";
+      fb.textContent=good?"✓ Acertou! x = "+c.ans+" · avance "+cs(BONUS[kind][0]):"✗ Errou. A resposta era x = "+c.ans+" · volte "+cs(BONUS[kind][1]);
+      ans.onkeydown=null;
+      nx.onclick=function(){$("modal").hidden=true;res({good:good,kind:kind})};
+      nx.focus();
+    }
+    ok.onclick=check;ans.onkeydown=function(e){if(e.key==="Enter")check()};
+  });
+}
+
+function place(p){p.el.style.left=XY[p.pos][0]/IW*100+"%";p.el.style.top=XY[p.pos][1]/IH*100+"%"}
+function where(p){var t=SEQ[p.pos];return t==="S"?"Início":t==="F"?"Chegada":t==="D"?"Desafio":t==="DD"?"Desafio duplo":"Casa "+t}
+function ui(){
+  var p=players[cur];
+  $("tdot").style.background=p.color;$("tname").textContent="Vez de: Jogador "+(cur+1)+" ("+p.name+")";
+  var h="";
+  players.forEach(function(q,i){
+    q.el.classList.toggle("cur",i===cur);
+    h+='<div class="'+(i===cur?"me":"")+'"><span class="dot" style="background:'+q.color+'"></span>Jogador '+(i+1)+'<small>'+where(q)+'</small></div>';
+  });
+  $("list").innerHTML=h;
+}
+async function move(p,k){
+  var s=k<0?-1:1;for(var i=0;i<Math.abs(k)&&(s>0?p.pos<LAST:p.pos>0);i++){p.pos+=s;place(p);await sleep(260)}
+  ui();
+}
+function rollDice(){
+  return new Promise(function(res){
+    var c=0,v,d=$("die");d.classList.add("roll");
+    var iv=setInterval(function(){v=ri(1,6);d.textContent=v;if(++c>=9){clearInterval(iv);d.classList.remove("roll");res(v)}},70);
+  });
+}
+function isPrime(m){if(m<2)return false;for(var i=2;i*i<=m;i++)if(m%i===0)return false;return true}
+function endBox(p,num){
+  return new Promise(function(res){
+    $("endt").textContent="Jogador "+(players.indexOf(p)+1)+" · Casa "+num;
+    $("c1").checked=false;$("endm").hidden=false;
+    $("endok").onclick=function(){$("endm").hidden=true;res($("c1").checked)};
+  });
+}
+function pendBox(p){
+  return new Promise(function(res){
+    $("pendt").textContent="Jogador "+(players.indexOf(p)+1)+" · Casa "+p.pend;
+    $("pendm").hidden=false;
+    $("pendyes").onclick=function(){$("pendm").hidden=true;res(true)};
+    $("pendno").onclick=function(){$("pendm").hidden=true;res(false)};
+  });
+}
+async function startTurn(){
+  ui();
+  while(players[cur].pend!==null){
+    if(await pendBox(players[cur])){players[cur].pend=null;break}
+    cur=(cur+1)%players.length;ui();
+  }
+  busy=false;$("roll").disabled=false;
+}
+function win(p){$("wtxt").textContent="Jogador "+(players.indexOf(p)+1)+" ("+p.name+") venceu!";$("win").hidden=false}
+async function turn(){
+  if(busy)return;busy=true;$("roll").disabled=true;
+  var p=players[cur],r=await rollDice();
+  await move(p,r);
+  if(p.pos>=LAST)return win(p);
+  var t=SEQ[p.pos],gain=0,k,res;
+  if(t==="D"){k=Math.random()<.5?"easy":"hard";res=await ask(k);gain+=BONUS[k][res.good?0:1]}
+  else if(t==="DD"){for(var i=1;i<=2;i++){k=Math.random()<.5?"easy":"hard";res=await ask(k,"Desafio duplo "+i+"/2");gain+=BONUS[k][res.good?0:1]}}
+  if(gain){await sleep(300);await move(p,gain);if(p.pos>=LAST)return win(p)}
+  var num=Number(SEQ[p.pos]);
+  if(!isNaN(num)){
+    var ok=await endBox(p,num);
+    if(ok&&isPrime(num)){await sleep(300);await move(p,1);if(p.pos>=LAST)return win(p)}
+    if(!ok)p.pend=num;
+  }
+  cur=(cur+1)%players.length;await startTurn();
+}
+function begin(){
+  document.querySelectorAll(".pin").forEach(function(e){e.remove()});
+  players=COLORS.slice(0,n).map(function(c,i){
+    var el=document.createElement("div");el.className="pin";el.style.background=c[1];
+    var o=(n>4?OFF7:OFF)[i];if(n>4)el.style.width="max(2.5%,12px)";
+    el.style.setProperty("--dx",o[0]);el.style.setProperty("--dy",o[1]);
+    $("board").appendChild(el);
+    var p={name:c[0],color:c[1],pos:0,pend:null,el:el};place(p);return p;
+  });
+  cur=0;busy=false;$("roll").disabled=false;$("die").textContent="🎲";
+  $("setup").style.display="none";$("game").style.display="block";$("win").hidden=true;ui();
+}
+function back(){$("game").style.display="none";$("setup").style.display="block";$("win").hidden=true;$("modal").hidden=true;$("endm").hidden=true;$("pendm").hidden=true}
+$("counts").onclick=function(e){var b=e.target.closest("button");if(!b)return;n=+b.dataset.n;
+  [].forEach.call(this.children,function(x){x.classList.toggle("sel",x===b)})};
+$("start").onclick=begin;$("roll").onclick=turn;$("reset").onclick=back;$("again").onclick=back;
+})();
+</script>
+</body>
+</html>
